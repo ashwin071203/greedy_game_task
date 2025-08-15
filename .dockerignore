@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+.next
+
+# Build files
+out
+build
+
+# Environment files
+.env*.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development
+.git
+.gitignore
+.vscode
+.idea
+*.md
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
