@@ -1,9 +1,13 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import { NextAuthOptions } from 'next-auth';
-import { SupabaseAdapter } from '@auth/supabase-adapter';
+import NextAuth from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import { createClient } from '@supabase/supabase-js';
+import { SupabaseAdapter } from '@auth/supabase-adapter';
+import { NextAuthOptions } from 'next-auth';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,38 +21,36 @@ export const authOptions: NextAuthOptions = {
     secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
   }),
   callbacks: {
-    async session({ session, user }) {
-      // Send properties to the client, like an access_token and user id from a provider.
-      const supabase = createRouteHandlerClient({ cookies });
+    async session({ session, user }: { session: any; user: any }) {
       const { data } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
-
-      return {
-        ...session,
-        user: {
-          ...session.user,
-          id: user.id,
-          role: data?.role || 'user',
-        },
-      };
+      return { ...session, user: { ...session.user, ...data } };
+    },
+    async signIn() {
+      return true;
+    },
+    async redirect({ baseUrl }: { baseUrl: string }) {
+      return baseUrl;
+    },
+    async jwt({ token }: { token: any }) {
+      return token;
     },
   },
   events: {
-    async createUser(message) {
-      // Create a user in your database when a new user signs up
-      const supabase = createRouteHandlerClient({ cookies });
+    async createUser({ user }: { user: any }) {
+      // Create a user profile when a new user signs up
       await supabase
-        .from('users')
+        .from('profiles')
         .insert([
           { 
-            id: message.user.id, 
-            email: message.user.email,
-            name: message.user.name,
-            image: message.user.image,
-            role: 'user' // Default role
+            id: user.id,
+            email: user.email,
+            name: user.name || user.email?.split('@')[0],
+            avatar_url: user.image,
+            created_at: new Date().toISOString(),
           },
         ]);
     },
@@ -62,9 +64,6 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-const handler = async (req: Request, context: any) => {
-  const { auth } = await import('@/auth');
-  return await (auth as any)(req, context);
-};
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
